@@ -1,11 +1,6 @@
 name: Decode frame payloads
 
 on:
-  push:
-    branches: [main]
-    paths:
-      - "**/*.jpg.b64"
-      - "**/*.jpeg.b64"
   workflow_dispatch:
 
 permissions:
