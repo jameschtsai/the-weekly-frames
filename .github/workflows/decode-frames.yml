@@ -1,0 +1,53 @@
+name: Decode frame payloads
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "**/*.jpg.b64"
+      - "**/*.jpeg.b64"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  decode:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Decode base64 JPEG payloads
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+          import base64
+          import sys
+
+          payloads = list(Path(".").rglob("*.jpg.b64")) + list(Path(".").rglob("*.jpeg.b64"))
+          if not payloads:
+              print("No .b64 payloads to decode")
+              sys.exit(0)
+          for src in payloads:
+              dest = src.with_suffix("")  # foo.jpg.b64 -> foo.jpg
+              # Path.with_suffix('') on 'foo.jpg.b64' -> 'foo.jpg'  (strips last suffix only)
+              dest.write_bytes(base64.b64decode(src.read_text()))
+              print(f"decoded {src} -> {dest} ({dest.stat().st_size} bytes)")
+              src.unlink()
+          PY
+
+      - name: Commit decoded JPEGs
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          if git diff --cached --quiet; then
+            echo "No changes to commit"
+            exit 0
+          fi
+          git commit -m "Decode base64 frame payloads to JPEGs"
+          git push
